@@ -23,6 +23,11 @@ contract Ballot {
       require(state == reqPhase);
       _;
     }
+    
+    modifier onlyChair() {
+      require(msg.sender == chairperson);
+      _;
+    }
 
     constructor(uint numProposals) public {
       chairperson = msg.sender;
@@ -33,21 +38,21 @@ contract Ballot {
       state = Phase.Regs;
     }
 
-    function changeState(Phase x) public {
-      if (msg.sender != chairperson) revert();
-      if (x < state) revert();
+    function changeState(Phase x) onlyChair public {
+      require(x > state);
       state = x;
     }
 
-    function register(address voter) public validPhase(Phase.Regs) {
-      if (msg.sender != chairperson || voters[voter].voted) revert();
+    function register(address voter) public validPhase(Phase.Regs) onlyChair {
+      require(!voters[voter].voted);
       voters[voter].weight = 1;
       voters[voter].voted = false;
     }
 
     function vote(uint toProposal) public validPhase(Phase.Vote) {
       Voter memory sender = voters[msg.sender];
-      if (sender.voted || toProposal >= proposals.length) revert();
+      require(!sender.voted);
+      require(toProposal < proposals.length);
       sender.voted = true;
       sender.vote = toProposal;
       proposals[toProposal].voteCount += sender.weight;
@@ -62,5 +67,6 @@ contract Ballot {
           winningProposal = prop;
         }
       }
+      assert(winningVoteCount >= 3);
     }
 }
